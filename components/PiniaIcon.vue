@@ -202,74 +202,49 @@ import { onMounted, onUnmounted, ref } from 'vue'
 const blinking = ref<'open' | 'closed'>('open')
 const talking = ref<'open' | 'closed'>('closed')
 
+let blinkInterval: ReturnType<typeof setInterval> | undefined
+let talkInterval: ReturnType<typeof setInterval> | undefined
+const pendingTimeouts = new Set<ReturnType<typeof setTimeout>>()
 
-const blinkTimer = 100
-const talkRate = 120
+function schedule(callback: () => void, delay: number) {
+  const timer = setTimeout(() => {
+    pendingTimeouts.delete(timer)
+    callback()
+  }, delay)
+  pendingTimeouts.add(timer)
+}
+
+function blink() {
+  blinking.value = 'closed'
+  schedule(() => { blinking.value = 'open' }, 180)
+}
+
+function speak() {
+  talking.value = 'open'
+  schedule(() => { talking.value = 'closed' }, 420)
+}
 
 onMounted(() => {
-  let timerId = setInterval(() => {
-    let blinkState = 0
-    function blinkHandler() {
-      blinkState++
+  // Beim Testen sofort sichtbar, nicht erst nach 10 Sekunden.
+  schedule(blink, 700)
+  blinkInterval = setInterval(blink, 3400)
+  talkInterval = setInterval(speak, 5200)
+})
 
-      if (blinkState % 2) {
-        blinking.value = 'closed'
-        setTimeout(blinkHandler, blinkTimer * 1.7)
-      } else if (blinkState < 4) {
-        blinking.value = 'open'
-        setTimeout(blinkHandler, blinkTimer)
-      } else {
-        blinking.value = 'open'
-      }
-    }
-    setTimeout(blinkHandler, 0)
-  }, 10000)
-
-  onUnmounted(() => {
-    clearInterval(timerId)
-  })
-
-  let talkingTimer = setInterval(() => {
-    let blinkState = 0
-    function blinkHandler() {
-      blinkState++
-
-      if (blinkState % 2) {
-// talking.value = 'closed'
-        setTimeout(blinkHandler, talkRate)
-      } else if (blinkState < 10) {
-// talking.value = 'open'
-        setTimeout(blinkHandler, talkRate)
-      } else {
-// talking.value = 'closed'
-      }
-    }
-    setTimeout(blinkHandler, 0)
-  }, 5000)
-  onUnmounted(() => {
-    clearInterval(talkingTimer)
-  })
+onUnmounted(() => {
+  if (blinkInterval !== undefined) clearInterval(blinkInterval)
+  if (talkInterval !== undefined) clearInterval(talkInterval)
+  pendingTimeouts.forEach(clearTimeout)
+  pendingTimeouts.clear()
 })
 </script>
 
 <style>
 @keyframes leaves-move {
-  0% {
-    transform: rotate(0deg) scale(1);
-  }
-  2.5% {
-    transform: rotate(-2deg) scale3d(0.9, 1.05, 1) translateY(6%);
-  }
-  3.5% {
-    transform: scale3d(1.05, 0.95, 1) translateY(2%);
-  }
-  5% {
-    transform: rotate(3deg) scale3d(0.9, 1.05, 1);
-  }
-  7.5%,
-  100% {
-    transform: rotate(0) scale(1);
-  }
+  0%, 100% { transform: rotate(0deg) scale(1) translateY(0); }
+  20% { transform: rotate(-5deg) scale(0.98, 1.02) translateY(3%); }
+  45% { transform: rotate(3deg) scale(1.02, 0.98) translateY(0); }
+  70% { transform: rotate(-2deg) scale(0.99, 1.01) translateY(1%); }
 }
 
 @keyframes rubberBand {
@@ -307,7 +282,7 @@ onMounted(() => {
 <style scoped>
 .leaves {
   /* animation: 10s ease-in-out 0s infinite rubberBand; */
-  animation: 10s ease-in-out 10s infinite normal leaves-move;
+  animation: 3.8s ease-in-out 0s infinite normal leaves-move;
   transform-origin: bottom;
 }
 
